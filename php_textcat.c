@@ -17,7 +17,7 @@
 /* $ Id: $ */
 
 #include "php_textcat.h"
-#include "textcat.h"
+#include "textcat/textcat.h"
 
 /****************************************
   Helper macros
