@@ -1,1 +1,0 @@
-/home/crodas/projects/github/textcat/src/memory.c
