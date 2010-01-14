@@ -10,7 +10,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Authors: Cesar Rodas <crodas@member.fsf.org>						 |
+  | Authors: Cesar Rodas <crodas@member.fsf.org>                         |
   +----------------------------------------------------------------------+
 */
 
@@ -30,9 +30,9 @@ extern zend_module_entry textcat_module_entry;
 #define phpext_textcat_ptr &textcat_module_entry
 
 #ifdef PHP_WIN32
-	#define PHP_TEXTCAT_API __declspec(dllexport)
+    #define PHP_TEXTCAT_API __declspec(dllexport)
 #else
-	#define PHP_TEXTCAT_API
+    #define PHP_TEXTCAT_API
 #endif
 
 #ifdef ZTS
@@ -49,9 +49,9 @@ PHP_MINFO_FUNCTION(textcat);
 #define CALL_METHOD(Class, Method, retval, thisptr)  PHP_FN(Class##_##Method)(0, retval, NULL, thisptr, 0 TSRMLS_CC);
 
 typedef struct {
-	zval * ptr;
-	zval * language;
-	TSRMLS_D;
+    zval * ptr;
+    zval * language;
+    TSRMLS_D;
 } textcat_callback_param;
 
 #endif /* PHP_TEXTCAT_H */
