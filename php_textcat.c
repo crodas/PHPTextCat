@@ -18,6 +18,7 @@
 
 #include "php_textcat.h"
 #include "textcat/textcat.h"
+#include "ext/standard/php_smart_str.h"
 
 /****************************************
   Helper macros
@@ -81,27 +82,28 @@
     } while(0);
 
 #define FETCH_DIR \
-    dir = zend_read_property(textcat_ce, object, "_path", sizeof("_path")-1,1  TSRMLS_CC);\
-\
+    dir     = zend_read_property(textcat_ce, object, "_path", sizeof("_path")-1,1  TSRMLS_CC);\
+	fileext = zend_read_property(textcat_ce, object, "fileext", sizeof("fileext")-1, 1 TSRMLS_CC);\
     if (Z_TYPE_P(dir) == IS_NULL) {\
         php_textcat_throw_exception("You must set a directory to save, TextCat::setDirectoy", 1 TSRMLS_CC);\
         RETURN_FALSE;\
-    }
+    } \
+	if (Z_TYPE_P(fileext) != IS_STRING) { \
+		ZVAL_STRINGL(fileext, "tc", 2, 1);\
+	}
 
 #define TEXTCAT_GET_FILENAME(size, filename, path) \
     FETCH_DIR \
     do {\
-    int offset = 0;\
-    path   = emalloc(size +  Z_STRLEN_P(dir) + 10);\
-    strncpy(path, Z_STRVAL_P(dir), Z_STRLEN_P(dir)); \
-    offset += Z_STRLEN_P(dir); \
-    strncpy(path + offset, "/", 1); \
-    offset += 1; \
-    strncpy(path + offset, filename, size); \
-    offset += size; \
-    strncpy(path + offset, DEFAULT_FILE_EXTENSION, strlen(DEFAULT_FILE_EXTENSION) ); \
-    offset += strlen(DEFAULT_FILE_EXTENSION); \
-    *(path+offset) = '\0'; \
+		smart_str buf = { 0 }; \
+		smart_str_appendl(&buf, Z_STRVAL_P(dir), Z_STRLEN_P(dir));\
+		smart_str_appendc(&buf, '/'); \
+		smart_str_appendl(&buf, filename, size); \
+		smart_str_appendc(&buf, '.'); \
+		smart_str_appendl(&buf, Z_STRVAL_P(fileext), Z_STRLEN_P(fileext));\
+		smart_str_appendc(&buf, '\0'); \
+		path = (unsigned char*)estrndup(buf.c, buf.len); \
+		efree(buf.c);  \
     } while(0);
 
 #if ZTS 
@@ -113,7 +115,7 @@
 #define PREPARE_CALLBACK \
     textcat_callback_param  * param; \
     zval retval; \
-    zval * args[2], funcname;\
+    zval * args[5], funcname;\
     \
     param = (textcat_callback_param *) context; \
     PREPARE_CALLBACK_THREAD
@@ -171,7 +173,7 @@ static void php_textcat_throw_exception(char *sqlstate, int errorno TSRMLS_DC);
 /* {{{  php_textcat_knowledge_save()  */
 static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams * result, void * context)
 {
-    zval *ngram_array; 
+    zval * ngram_array; 
     PREPARE_CALLBACK
 
     NGRAMS_TO_ARRAYP(result, ngram_array);
@@ -183,7 +185,7 @@ static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams *
 
     call_user_function(NULL, &param->ptr, &funcname, &retval, 2, args TSRMLS_CC);
 
-    zval_dtor(ngram_array);
+    zval_ptr_dtor(&ngram_array);
 
     return Z_BVAL(retval) || Z_TYPE(retval) == IS_NULL ? TC_TRUE : TC_FALSE;
 }
@@ -213,6 +215,7 @@ static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams *
     result->size = i;
     zval_dtor(&retval);
     efree(name);
+	return TC_TRUE;
 }
 /* }}} */
 
@@ -329,7 +332,7 @@ static PHP_METHOD(BaseTextCat, save)
     MAKE_STD_ZVAL(param->language);
     ZVAL_STRINGL(param->language, data, data_len, 1); 
     status = TextCat_save(obj->tc, data);
-    zval_dtor(param->language);
+    zval_ptr_dtor(&param->language);
 
     if (status == TC_TRUE) {
         RETURN_TRUE;
@@ -375,7 +378,7 @@ static PHP_METHOD(BaseTextCat, parse)
     }
     TEXTCAT_METHOD_FETCH_OBJECT;
 
-    if (TextCat_parse_ex(obj->tc, text, text_len, &result, TC_FALSE) != TC_TRUE) {
+    if (TextCat_parse_ex(obj->tc, text, (size_t)text_len, &result, TC_FALSE) != TC_TRUE) {
         RETURN_FALSE;
     }
     NGRAMS_TO_ARRAY(result,return_value);
@@ -387,7 +390,7 @@ static PHP_METHOD(BaseTextCat, parse)
 static PHP_METHOD(BaseTextCat, getCategory)
 {
     char * text;
-    long text_len;
+	int text_len;
     int len, i;
     uchar ** result;
     textcat_callback_param  * param;
@@ -401,7 +404,7 @@ static PHP_METHOD(BaseTextCat, getCategory)
 
     TEXTCAT_FETCH_PARAM(param)
 
-    if (TextCat_getCategory(obj->tc, text, text_len, &result, &len) != TC_TRUE) {
+    if (TextCat_getCategory(obj->tc, text, (size_t)text_len, &result, &len) != TC_TRUE) {
         TEXTCAT_ERROR_TO_EXCEPTION;
     }
     if (len == 1) {
@@ -442,11 +445,11 @@ static PHP_METHOD(TextCat, _save)
 {
     TEXTCAT_METHOD_INIT_VARS;
     char * filename;
-    long size;
+    int size;
     zval * array;
     php_stream * stream;
-    char * path;
-    zval * dir;
+    uchar * path;
+    zval * dir, * fileext;
     int offset;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sa", &filename, &size, &array) == FAILURE) {
@@ -491,12 +494,13 @@ static PHP_METHOD(TextCat, _save)
     Read the N-grams content from a file */
 static PHP_METHOD(TextCat, _load)
 {
-    zval * dir;
+    zval * dir, * fileext;
     char **namelist;
-    long size, i, e;
+    long i, e;
     char * path, * filename, *contents;
     uchar * ngram_tmp;
     php_stream * stream;
+	int size;
 
     TEXTCAT_METHOD_INIT_VARS;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &size) == FAILURE) {
@@ -531,7 +535,7 @@ static PHP_METHOD(TextCat, _load)
     Return a list of N-grams saved */
 static PHP_METHOD(TextCat, _list)
 {
-    zval * dir;
+    zval * dir, * fileext;
     char **namelist;
     int i, n;
 
@@ -547,8 +551,8 @@ static PHP_METHOD(TextCat, _list)
     n = php_stream_scandir(Z_STRVAL_P(dir), &namelist, NULL, (void *) php_stream_dirent_alphasort);
     array_init(return_value);
     for (i = 0; i < n; i++) {
-        int offset = strlen(namelist[i]) - strlen(DEFAULT_FILE_EXTENSION);
-        if (i > 1 && strcmp(namelist[i] + offset, DEFAULT_FILE_EXTENSION) == 0) {
+        int offset = strlen(namelist[i]) - 3;
+        if (offset > 1 && strcmp(namelist[i] + offset, DEFAULT_FILE_EXTENSION) == 0) {
             namelist[i][ offset ] = '\0';
             add_next_index_stringl(return_value, namelist[i], offset, 0); 
         } else {
@@ -733,7 +737,8 @@ PHP_MINIT_FUNCTION(textcat)
     INIT_CLASS_ENTRY(_textcat, "TextCat", textcat_class_methods);
 
     textcat_ce = zend_register_internal_class_ex(&_textcat, base_textcat_ce, NULL TSRMLS_CC);
-    zend_declare_property_null(textcat_ce, "_path", sizeof("_path")-1, ZEND_ACC_PROTECTED  TSRMLS_CC);
+    zend_declare_property_null(textcat_ce, "_path", sizeof("_path")-1, ZEND_ACC_PRIVATE TSRMLS_CC);
+    zend_declare_property_stringl(textcat_ce, "fileext", sizeof("fileext")-1, "tc", 2,  ZEND_ACC_PUBLIC  TSRMLS_CC);
 
     INIT_CLASS_ENTRY(tc_exception, "TextCatException", textcat_exception_methods);
     textcat_exception_ce = zend_register_internal_class_ex(&tc_exception,  zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);

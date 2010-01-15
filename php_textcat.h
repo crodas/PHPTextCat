@@ -44,7 +44,7 @@ extern zend_module_entry textcat_module_entry;
 PHP_MINIT_FUNCTION(textcat);
 PHP_MINFO_FUNCTION(textcat);
 
-#define DEFAULT_FILE_EXTENSION ".tc"
+#define DEFAULT_FILE_EXTENSION ".tc\0"
 
 #define CALL_METHOD(Class, Method, retval, thisptr)  PHP_FN(Class##_##Method)(0, retval, NULL, thisptr, 0 TSRMLS_CC);
 
