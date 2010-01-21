@@ -184,7 +184,7 @@ Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length,
         if (isalpha(text[i])) {
             ntext[e++] = tolower(text[i]);
         } else {
-            while (++i < length && !isalpha(text[i]));
+            while (i++ < length && !isalpha(text[i]));
             ntext[e++] = ' ';
             i--;
         }

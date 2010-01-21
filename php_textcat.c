@@ -17,7 +17,7 @@
 /* $ Id: $ */
 
 #include "php_textcat.h"
-#include "textcat/textcat.h"
+#include "textcat/textcat_internal.h"
 #include "ext/standard/php_smart_str.h"
 
 /****************************************
@@ -54,11 +54,11 @@
 
 #define ENDFOREACH(array) \
     zval_dtor(&value); } \
-    zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));  }
+    zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));  } while (0);
 
-#define FOREACH(array) FOREACH_EX(array, 1)
+#define FOREACH(array) FOREACH_EX(array, 1 == 1)
 
-#define FOREACH_EX(array, exp) {\
+#define FOREACH_EX(array, exp) do {\
     HashPosition pos; \
     zval **current, value; \
     char *key;\
@@ -117,12 +117,12 @@
     zval retval; \
     zval * args[5], funcname;\
     \
-    param = (textcat_callback_param *) context; \
+    param = (textcat_callback_param *) context_ptr; \
     PREPARE_CALLBACK_THREAD
 
 #define PREPARE_CALLBACK_FNC(name) \
     PREPARE_CALLBACK \
-    ZVAL_STRING(&funcname, name, 0);\
+    ZVAL_STRING(&funcname, name, 0); /* don't copy the str */ \
     
 #define TEXTCAT_ERROR_TO_EXCEPTION\
     char * errstr;\
@@ -171,7 +171,7 @@ static void php_textcat_throw_exception(char *sqlstate, int errorno TSRMLS_DC);
 ****************************************/
 
 /* {{{  php_textcat_knowledge_save()  */
-static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams * result, void * context)
+static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams * result, void * context_ptr)
 {
     zval * ngram_array; 
     PREPARE_CALLBACK
@@ -192,7 +192,7 @@ static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams *
  /* }}} */
 
 /* {{{ php_textcat_knowledge_load() */
-static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams * result, int max, void * context)
+static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams * result, int max, void * context_ptr)
 {
     zval * name;
     int i;
@@ -220,28 +220,32 @@ static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams *
 /* }}} */
 
 /* {{{  php_textcat_knowledge_list()  */
-static Bool php_textcat_knowledge_list(void * memory, uchar *** list, int * max, void * context)
+static Bool php_textcat_knowledge_list(void * memblock, uchar *** list, int * size, void * context_ptr)
 {
+	int memsize;
+	zval * ret_val;
     PREPARE_CALLBACK_FNC("_list")
 
-    call_user_function(NULL, &param->ptr, &funcname, &retval, 0, NULL TSRMLS_CC);
+	MAKE_STD_ZVAL(ret_val)
+    call_user_function(NULL, &param->ptr, &funcname, ret_val, 0, NULL TSRMLS_CC);
 
-    if (Z_TYPE(retval) != IS_ARRAY) {
+    if (Z_TYPE_P(ret_val) != IS_ARRAY) {
         *list = NULL;
-        *max  = 0;
-        zval_dtor(&retval);
+        *size = 0;
+        zval_ptr_dtor(&ret_val);
         php_textcat_throw_exception("_list() method must return an array", 1 TSRMLS_CC);
         return TC_FALSE;
     }
-    int i   = 0;
-    *max = zend_hash_num_elements(Z_ARRVAL(retval));
-    *list = mempool_malloc(memory, *max * sizeof(char *));
-    FOREACH(&retval)
-        *(*list+i) = mempool_strndup(memory, Z_STRVAL(value), Z_STRLEN(value));
+    size_t i = 0;
+    memsize = zend_hash_num_elements(Z_ARRVAL_P(ret_val));
+    *list   = (uchar **)mempool_malloc(memblock, memsize * (size_t)sizeof(char *));
+    FOREACH(ret_val)
+        *(*list + i) = mempool_strndup(memblock, Z_STRVAL(value), Z_STRLEN(value));
         i++;
-    ENDFOREACH(&retval)
-    zval_dtor(&retval);
-    return TC_TRUE;
+    ENDFOREACH(ret_val)
+    zval_ptr_dtor(&ret_val);
+	*size = memsize;
+    return TC_TRUE; 
 }
  /* }}} */
 
@@ -348,7 +352,7 @@ static PHP_METHOD(BaseTextCat, save)
 static PHP_METHOD(BaseTextCat, addSample)
 {
     char * text;
-    long text_len;
+    int text_len;
 
     TEXTCAT_METHOD_INIT_VARS;
 
@@ -554,10 +558,9 @@ static PHP_METHOD(TextCat, _list)
         int offset = strlen(namelist[i]) - 3;
         if (offset > 1 && strcmp(namelist[i] + offset, DEFAULT_FILE_EXTENSION) == 0) {
             namelist[i][ offset ] = '\0';
-            add_next_index_stringl(return_value, namelist[i], offset, 0); 
-        } else {
-            efree(namelist[i]);
-        }
+            add_next_index_stringl(return_value, namelist[i], offset, 1); 
+        } 
+        efree(namelist[i]);
     }
     if (n > 0) {
         efree(namelist);
@@ -571,7 +574,7 @@ static PHP_METHOD(TextCat, setDirectory)
 {
     char * path;
     int path_len;
-    int did;
+    DIR *  did;
 
     TEXTCAT_METHOD_INIT_VARS;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
@@ -717,9 +720,6 @@ static zend_function_entry textcat_class_methods[] = {
     PHP_ME(TextCat, setDirectory, arginfo_setDir, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     { NULL, NULL, NULL }
 };
-static zend_function_entry textcat_exception_methods[] = {
-    {NULL, NULL, NULL}
-};
 /* }}} * /
 
 /* {{{ PHP_MINIT_FUNCTION */
@@ -740,7 +740,7 @@ PHP_MINIT_FUNCTION(textcat)
     zend_declare_property_null(textcat_ce, "_path", sizeof("_path")-1, ZEND_ACC_PRIVATE TSRMLS_CC);
     zend_declare_property_stringl(textcat_ce, "fileext", sizeof("fileext")-1, "tc", 2,  ZEND_ACC_PUBLIC  TSRMLS_CC);
 
-    INIT_CLASS_ENTRY(tc_exception, "TextCatException", textcat_exception_methods);
+    INIT_CLASS_ENTRY(tc_exception, "TextCatException", NULL);
     textcat_exception_ce = zend_register_internal_class_ex(&tc_exception,  zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 
     return SUCCESS;

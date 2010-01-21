@@ -121,6 +121,7 @@ typedef struct NGrams {
 /* }}} */
 
 
+Bool TextCat_Init_ex(TextCat ** tcc, void * (*xmalloc)(size_t), void (*xfree)(void *));
 Bool TextCat_Init(TextCat ** tc);
 Bool TextCat_Destroy(TextCat * tc);
 Bool TextCat_reset(TextCat * tc);

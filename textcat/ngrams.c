@@ -105,8 +105,6 @@ Bool textcat_init_hash(TextCat * tc)
     ngram_set * table;
     int i;
 
-    INIT_MEMORY(temp);
-
     table = mempool_calloc(tc->temp, tc->hash_size, sizeof(ngram_set));
 
     CHECK_MEM(table)

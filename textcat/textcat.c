@@ -18,15 +18,15 @@
 #include "textcat_internal.h"
 
 /* TextCat_Init(TextCat ** tcc) {{{ */
-Bool TextCat_Init(TextCat ** tcc)
+Bool TextCat_Init_ex(TextCat ** tcc, void * (*xmalloc)(size_t), void (*xfree)(void *))
 {
     TextCat * tc;
-    tc = (TextCat *) malloc(sizeof(TextCat));
+    tc = (TextCat *) xmalloc(sizeof(TextCat));
     if (tc == NULL) {
         return TC_FALSE;
     }
-    tc->malloc        = malloc;
-    tc->free          = free;
+    tc->malloc        = xmalloc;
+    tc->free          = xfree;
     tc->allocate_size = TC_BUFFER_SIZE;
     tc->hash_size     = TC_HASH_SIZE;
     tc->min_ngram_len = MIN_NGRAM_LEN;
@@ -35,7 +35,6 @@ Bool TextCat_Init(TextCat ** tcc)
     tc->error         = TC_OK;
     tc->status        = TC_FREE;
     tc->threshold     = TC_THRESHOLD;
-    *tcc              = tc;
     tc->memory        = NULL;
     tc->temp          = NULL;
     tc->results       = NULL;
@@ -44,7 +43,15 @@ Bool TextCat_Init(TextCat ** tcc)
     tc->param         = NULL;
     tc->klTotal       = -1;
     TextCat_reset_handlers(tc);
+    INIT_MEMORY(memory);
+    INIT_MEMORY(temp);
+    *tcc = tc;
     return TC_TRUE;
+}
+
+Bool TextCat_Init(TextCat ** tcc)
+{
+    return TextCat_Init_ex(tcc, malloc, free);
 }
 /* }}} */
 
@@ -85,13 +92,14 @@ Bool TextCat_reset_handlers(TextCat * tc)
 Bool TextCat_Destroy(TextCat * tc) 
 {
     LOCK_INSTANCE(tc);
+    void (*xfree)(size_t) = tc->free;
     if (tc->memory != NULL) {
         mempool_done(&tc->memory);
     }
     if (tc->temp != NULL) {
         mempool_done(&tc->temp);
     }
-    free(tc);
+    xfree(tc);
 }
 /* }}} */
 
@@ -253,9 +261,11 @@ Bool TextCat_save(TextCat * tc, const uchar * id)
 Bool TextCat_list(TextCat * tc, uchar *** list, int * len)
 {
     Bool ret;
+    LOCK_INSTANCE(tc);
     if (tc->klNames ==  NULL) {
         if (tc->list(tc->memory, &tc->klNames, &tc->klTotal, tc->param) == TC_FALSE) {
             tc->error = TC_ERR_CALLBACK;
+            UNLOCK_INSTANCE(tc);
             return TC_FALSE;
         }
     }
@@ -263,6 +273,7 @@ Bool TextCat_list(TextCat * tc, uchar *** list, int * len)
         *list = tc->klNames;
         *len  = tc->klTotal;
     }
+    UNLOCK_INSTANCE(tc);
     return TC_TRUE;
 }
 /* }}} */
@@ -278,18 +289,16 @@ Bool TextCat_load(TextCat *tc)
         return TC_TRUE;
     }
 
-    LOCK_INSTANCE(tc);
     if (TextCat_list(tc, NULL, NULL) == TC_FALSE) {
-        UNLOCK_INSTANCE(tc);
         tc->error = TC_ERR_CALLBACK;
         return TC_FALSE;
     }
     if (tc->klTotal == 0) {
-        UNLOCK_INSTANCE(tc);
         tc->error = TC_ERR_NO_KNOWLEDGE;
         return TC_FALSE;
     }
 
+    LOCK_INSTANCE(tc);
     tc->klContent = mempool_calloc(tc->memory, tc->klTotal, sizeof(NGrams));
 
     for (i=0; i < tc->klTotal; i++) {
@@ -325,12 +334,15 @@ Bool TextCat_getCategory(TextCat *tc, const uchar * text, size_t length, uchar *
     int i;
     _cands * dists;
     long threshold;
+
     if (TextCat_load(tc) == TC_FALSE) {
         return TC_FALSE;
     }
+
     if (TextCat_parse_ex(tc, text, length, &ptext, TC_FALSE) == TC_FALSE) {
         return TC_FALSE;
     }
+
     LOCK_INSTANCE(tc);
     dists = mempool_calloc(tc->memory, tc->klTotal, sizeof(_cands));
     for (i=0; i  < tc->klTotal; i++) {

@@ -27,17 +27,15 @@
 #define CHECK_MEM_EX(x,Y)   if (x == NULL) { tc->error = TC_ERR_MEM; Y; return TC_FALSE;  }
 
                                 
-#define INIT_MEMORY(x)      if (tc->x == NULL) { \
-                                mempool_init(&tc->x, tc->malloc, tc->free, tc->allocate_size); \
-                                CHECK_MEM_EX(tc->x, textcat_destroy_hash(tc); tc->status=TC_FREE;)  \
-                            }
+#define INIT_MEMORY(x)  \
+                        mempool_init(&tc->x, xmalloc, xfree, tc->allocate_size); \
+                        CHECK_MEM_EX(tc->x, TextCat_Destroy(tc) )  \
 
 #define LOCK_INSTANCE(tc)   if (tc->status != TC_FREE) {\
                                 tc->error = TC_BUSY; \
                                 return TC_FALSE; \
                             } \
                             tc->status = TC_BUSY; /* lock it for our thread */ \
-                            INIT_MEMORY(memory);  /* initialize tc->memory if it wasn't before */
 
 #define UNLOCK_INSTANCE(tc)   tc->status = TC_FREE;
 

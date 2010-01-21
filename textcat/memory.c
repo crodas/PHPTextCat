@@ -23,6 +23,7 @@ typedef struct memblock {
     size_t offset;
     short int free;
     struct memblock * next;
+    struct memblock * prev;
 } memblock;
 
 typedef struct mempool {
@@ -123,7 +124,8 @@ void * mempool_malloc(void * memory, size_t size)
     pool    = (mempool *) memory;
     ask_mem = 1; 
 
-    for (mem=pool->first; mem; mem = mem->next) {
+
+    for (mem=pool->last; mem; mem = mem->prev) {
         if (mem->free == 1) {
             free = mem->size > mem->offset ? mem->size - mem->offset : 0;
             if (free > 0 && free > size) {
@@ -140,7 +142,7 @@ void * mempool_malloc(void * memory, size_t size)
         }
         mem = pool->last;
     }
-    mmem         = mem->memory + mem->offset;
+    mmem = mem->memory + mem->offset;
     pool->usage += size;
     mem->offset += size;
     mem->free    = mem->offset == mem->size ? 0 : 1; 
@@ -191,11 +193,13 @@ static Bool mempool_add_memblock (mempool * pool, size_t rsize)
     mem->free   = 1;
     mem->offset = sizeof(memblock); 
     mem->next   = NULL;
+    mem->prev   = NULL;
     mem->memory = _memblock;
     if (pool->first == NULL) {
         pool->first = mem;
-    }
+    } 
     if (pool->last != NULL) {
+        mem->prev = pool->last;
         pool->last->next = mem;
     }
     pool->last   = mem;

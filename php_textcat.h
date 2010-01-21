@@ -25,6 +25,8 @@
 
 #include <php.h>
 #include <ext/standard/info.h>
+#include <Zend/zend_exceptions.h>
+#include "textcat/textcat.h"
 
 extern zend_module_entry textcat_module_entry;
 #define phpext_textcat_ptr &textcat_module_entry
@@ -53,6 +55,7 @@ typedef struct {
     zval * language;
     TSRMLS_D;
 } textcat_callback_param;
+
 
 #endif /* PHP_TEXTCAT_H */
 
