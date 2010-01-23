@@ -17,7 +17,6 @@
 /* $ Id: $ */
 
 #include "php_textcat.h"
-#include "textcat/textcat_internal.h"
 #include "ext/standard/php_smart_str.h"
 
 /****************************************
@@ -113,11 +112,11 @@
 #endif 
 
 #define PREPARE_CALLBACK \
-    textcat_callback_param  * param; \
+    textcat_callback_param  * ctx; \
     zval retval; \
     zval * args[5], funcname;\
     \
-    param = (textcat_callback_param *) context_ptr; \
+    ctx = (textcat_callback_param *) param; \
     PREPARE_CALLBACK_THREAD
 
 #define PREPARE_CALLBACK_FNC(name) \
@@ -171,7 +170,7 @@ static void php_textcat_throw_exception(char *sqlstate, int errorno TSRMLS_DC);
 ****************************************/
 
 /* {{{  php_textcat_knowledge_save()  */
-static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams * result, void * context_ptr)
+static TEXTCAT_SAVE(php) 
 {
     zval * ngram_array; 
     PREPARE_CALLBACK
@@ -180,10 +179,10 @@ static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams *
 
     /* Send the result to our PHP method */
     ZVAL_STRING(&funcname, "_save", 0);
-    args[0] = param->language;
+    args[0] = ctx->language;
     args[1] = ngram_array;
 
-    call_user_function(NULL, &param->ptr, &funcname, &retval, 2, args TSRMLS_CC);
+    call_user_function(NULL, &ctx->ptr, &funcname, &retval, 2, args TSRMLS_CC);
 
     zval_ptr_dtor(&ngram_array);
 
@@ -192,7 +191,7 @@ static Bool php_textcat_knowledge_save(void * memory, const uchar * id, NGrams *
  /* }}} */
 
 /* {{{ php_textcat_knowledge_load() */
-static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams * result, int max, void * context_ptr)
+static TEXTCAT_LOAD(php)
 {
     zval * name;
     int i;
@@ -204,11 +203,11 @@ static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams *
     
     args[0] = name;
     zval return_value;
-    call_user_function(NULL, &param->ptr, &funcname, &retval, 1, args TSRMLS_CC);
+    call_user_function(NULL, &ctx->ptr, &funcname, &retval, 1, args TSRMLS_CC);
 
     i=0;
     FOREACH_EX(&retval, i < max)
-        result->ngram[i].str      = mempool_strndup(memory, Z_STRVAL(value), Z_STRLEN(value));
+        result->ngram[i].str      = tc_strndup(Z_STRVAL(value), Z_STRLEN(value));
         result->ngram[i].size     = Z_STRLEN(value);
         result->ngram[i].position = i++;
     ENDFOREACH(&retval)
@@ -220,14 +219,14 @@ static Bool php_textcat_knowledge_load(void * memory, const uchar * id, NGrams *
 /* }}} */
 
 /* {{{  php_textcat_knowledge_list()  */
-static Bool php_textcat_knowledge_list(void * memblock, uchar *** list, int * size, void * context_ptr)
+static TEXTCAT_LIST(php)
 {
 	int memsize;
 	zval * ret_val;
     PREPARE_CALLBACK_FNC("_list")
 
 	MAKE_STD_ZVAL(ret_val)
-    call_user_function(NULL, &param->ptr, &funcname, ret_val, 0, NULL TSRMLS_CC);
+    call_user_function(NULL, &ctx->ptr, &funcname, ret_val, 0, NULL TSRMLS_CC);
 
     if (Z_TYPE_P(ret_val) != IS_ARRAY) {
         *list = NULL;
@@ -238,9 +237,9 @@ static Bool php_textcat_knowledge_list(void * memblock, uchar *** list, int * si
     }
     size_t i = 0;
     memsize = zend_hash_num_elements(Z_ARRVAL_P(ret_val));
-    *list   = (uchar **)mempool_malloc(memblock, memsize * (size_t)sizeof(char *));
+    *list   = (uchar **)tc_malloc(memsize * sizeof(uchar *));
     FOREACH(ret_val)
-        *(*list + i) = mempool_strndup(memblock, Z_STRVAL(value), Z_STRLEN(value));
+        *(*list + i) = tc_strndup(Z_STRVAL(value), Z_STRLEN(value));
         i++;
     ENDFOREACH(ret_val)
     zval_ptr_dtor(&ret_val);
@@ -655,9 +654,9 @@ zend_object_value php_textcat_new(zend_class_entry *ce TSRMLS_DC)
     obj->tc->param  = param;
 
     /* preparing callback */
-    obj->tc->save = php_textcat_knowledge_save;
-    obj->tc->list = php_textcat_knowledge_list;
-    obj->tc->load = php_textcat_knowledge_load;
+    obj->tc->save = &TEXTCAT_FUNCTION(save, php);
+    obj->tc->list = &TEXTCAT_FUNCTION(list, php);
+    obj->tc->load = &TEXTCAT_FUNCTION(load, php);
     /* }}} */
 
     return retval;

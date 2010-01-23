@@ -24,13 +24,13 @@
 
 #define FILE_BUFFER 1024
 
-Bool knowledge_save(void * memory, const uchar * id, NGrams * result, void * param)
+TEXTCAT_SAVE(default)
 {
     uchar * fname, * content;
     long i, ret, offset;
     int fd;
 
-    fname = mempool_malloc(memory, strlen(id) + strlen(DIR_NAME) + 2);
+    fname = tc_malloc(strlen(id) + strlen(DIR_NAME) + 2);
     sprintf(fname, "%s/%s", DIR_NAME, id);
     mkdir(DIR_NAME, 0777);
 
@@ -38,7 +38,7 @@ Bool knowledge_save(void * memory, const uchar * id, NGrams * result, void * par
     if (fd == -1) {
         return TC_FALSE;
     }
-    content = mempool_malloc(memory, FILE_BUFFER); 
+    content = tc_malloc(FILE_BUFFER); 
     if (content == NULL) {
         return TC_FALSE;
     }
@@ -60,7 +60,7 @@ Bool knowledge_save(void * memory, const uchar * id, NGrams * result, void * par
     return TC_TRUE;
 }
 
-Bool knowledge_list(void * memory, uchar *** list, int * size, void * param) 
+TEXTCAT_LIST(default)
 {
     DIR * fd;
     struct dirent * info;
@@ -74,7 +74,7 @@ Bool knowledge_list(void * memory, uchar *** list, int * size, void * param)
     i   = 0;
     while (readdir(fd))  len++;
     rewinddir(fd);
-    *list = mempool_malloc(memory, len * sizeof(char *));
+    *list = tc_malloc(len * sizeof(char *));
     if (*list == NULL) {
         return TC_FALSE;
     }
@@ -82,7 +82,7 @@ Bool knowledge_list(void * memory, uchar *** list, int * size, void * param)
         if (strcmp(info->d_name, ".") == 0 || strcmp(info->d_name, "..") == 0) {
             continue;
         }
-        *(*list+i) = mempool_strdup(memory, info->d_name);
+        *(*list+i) = tc_strdup(info->d_name);
         if (*(*list+i) == NULL) {
             return TC_FALSE;
         }
@@ -93,13 +93,13 @@ Bool knowledge_list(void * memory, uchar *** list, int * size, void * param)
     return TC_TRUE;
 }
 
-Bool knowledge_load(void * memory, const uchar * id, NGrams * result, int max, void * param)
+TEXTCAT_LOAD(default)
 {
     int fd;
     int bytes, offset, ncount, i,e;
     uchar * fname,  * content;
 
-    fname = mempool_malloc(memory, strlen(id) + strlen(DIR_NAME) + 2);
+    fname = tc_malloc(strlen(id) + strlen(DIR_NAME) + 2);
     sprintf(fname, "%s/%s", DIR_NAME, id);
 
     fd = open(fname, O_RDONLY);
@@ -107,14 +107,14 @@ Bool knowledge_load(void * memory, const uchar * id, NGrams * result, int max, v
         return TC_FALSE;
     }
     
-    content = mempool_malloc(memory, FILE_BUFFER);
+    content = tc_malloc(FILE_BUFFER);
     ncount  = 0;
     offset  = 0;
     do {
         bytes = read(fd, content + offset, FILE_BUFFER - offset) + offset;
         for (i=0; offset < bytes; offset++) {
             if (*(content+offset) == '\n') {
-                result->ngram[ncount].str       = mempool_strndup(memory, content+i, offset-i);
+                result->ngram[ncount].str       = tc_strndup(content+i, offset-i);
                 result->ngram[ncount].size      = offset-i;
                 result->ngram[ncount].position  = ncount;
                 i = offset+1;
@@ -142,7 +142,7 @@ Bool knowledge_load(void * memory, const uchar * id, NGrams * result, int max, v
     return TC_TRUE;
 }
 
-long knowledge_dist(NGrams *a, NGrams *b, void * param)
+TEXTCAT_DISTANCE(default)
 {
     int ai, bi, diff;
     long dist;
@@ -171,7 +171,7 @@ long knowledge_dist(NGrams *a, NGrams *b, void * param)
 }
 
 /* Default Parsing text callback {{{ */
-Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length, int * (*set_ngram)(TextCat *, const uchar *, size_t), void * param)
+TEXTCAT_PARSER(default)
 {
     size_t i,e,x, valid;
     uchar *ntext;
@@ -179,7 +179,7 @@ Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length,
      * to clean it, setting everything to lower-case, removing
      * non-alpha and whitespaces.
      */
-    ntext = mempool_malloc(tc->temp,length+1);
+    ntext = tc_malloc(length+1);
     for (i=0, e=0; i < length; i++) {
         if (isalpha(text[i])) {
             ntext[e++] = tolower(text[i]);
@@ -193,7 +193,7 @@ Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length,
     length     = e - 1;
     /* extract the ngrams, and pass-it to the library (with the callback) */
     for (e=0; e < length; e++) {
-        for (i=tc->min_ngram_len; i <= tc->max_ngram_len; i++) {
+        for (i=min; i <= max; i++) {
             if (e+i > length) {
                 break;
             }
@@ -210,7 +210,7 @@ Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length,
             if (valid==0) {
                 continue;
             }
-            /* }}} */
+            /* }}} */ 
 
             if (set_ngram(tc, ntext+e, i) == TC_FALSE) {
                 return TC_FALSE;

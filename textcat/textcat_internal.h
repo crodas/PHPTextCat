@@ -64,11 +64,11 @@ Bool textcat_init_hash(TextCat * tc);
 void textcat_destroy_hash(TextCat * tc);
 Bool textcat_result_merge(TextCat *tc, result_stack * stack, NGrams ** result);
 /* */
-Bool knowledge_save(void *, const uchar * id, NGrams * ngrams, void *);
-Bool knowledge_list(void *, uchar *** list, int * size, void *);
-Bool knowledge_load(void * memory, const uchar * id, NGrams * result, int max, void *);
-long knowledge_dist(NGrams *a, NGrams *b, void *);
-Bool textcat_default_text_parser(TextCat *tc, const uchar * text, size_t length, int * (*set_ngram)(TextCat *, const uchar *, size_t), void *);
+TEXTCAT_LIST(default);
+TEXTCAT_SAVE(default);
+TEXTCAT_LOAD(default);
+TEXTCAT_DISTANCE(default);
+TEXTCAT_PARSER(default);
 /* }}} */
 
 #define mempool_strdup(x,y) mempool_strndup(x, y, strlen(y))

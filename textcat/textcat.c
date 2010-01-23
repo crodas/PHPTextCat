@@ -78,11 +78,11 @@ Bool TextCat_reset(TextCat * tc)
 Bool TextCat_reset_handlers(TextCat * tc)
 {
     LOCK_INSTANCE(tc);
-    tc->parse_str = &textcat_default_text_parser;
-    tc->save      = &knowledge_save;
-    tc->list      = &knowledge_list;
-    tc->load      = &knowledge_load;
-    tc->distance  = &knowledge_dist;
+    tc->parse_str = & TEXTCAT_FUNCTION(parser, default);
+    tc->save      = & TEXTCAT_FUNCTION(save, default);
+    tc->list      = & TEXTCAT_FUNCTION(list, default);
+    tc->load      = & TEXTCAT_FUNCTION(load, default);
+    tc->distance  = & TEXTCAT_FUNCTION(dist, default);
     UNLOCK_INSTANCE(tc);
     return TC_TRUE;
 }
@@ -116,7 +116,7 @@ Bool TextCat_parse_ex(TextCat * tc, const uchar * text, size_t length,  NGrams *
         return TC_FALSE;
     }
     
-    if (tc->parse_str(tc, text, length, &textcat_ngram_incr, tc->param) == TC_FALSE) {
+    if (tc->parse_str(tc->temp, tc->min_ngram_len, tc->max_ngram_len, text, length, &textcat_ngram_incr, tc->param, tc) == TC_FALSE) {
         textcat_destroy_hash(tc);
         UNLOCK_INSTANCE(tc);
         return TC_FALSE;
@@ -191,7 +191,7 @@ Bool TextCat_parse_file(TextCat * tc, const uchar * filename, NGrams ** ngrams)
 
     do {
         bytes = read(fd, buffer, 1024);
-        if (bytes && tc->parse_str(tc, buffer, bytes, &textcat_ngram_incr, tc->param) == TC_FALSE) {
+        if (bytes && tc->parse_str(tc->temp, tc->min_ngram_len, tc->max_ngram_len, buffer, bytes, &textcat_ngram_incr, tc->param, tc) == TC_FALSE) {
             textcat_destroy_hash(tc);
             UNLOCK_INSTANCE(tc);
             return TC_FALSE;
@@ -364,6 +364,18 @@ Bool TextCat_getCategory(TextCat *tc, const uchar * text, size_t length, uchar *
     }
     UNLOCK_INSTANCE(tc);
     return TC_TRUE;
+}
+/* }}} */
+
+/* memory functions, usefult for callback functiosn {{{ */
+void * TextCat_malloc(void * memblock, size_t size)
+{
+    return mempool_malloc(memblock, size);
+}
+
+void * TextCat_strndup(void * memblock, uchar * str, size_t len)
+{
+    return mempool_strndup(memblock, str, len);
 }
 /* }}} */
 

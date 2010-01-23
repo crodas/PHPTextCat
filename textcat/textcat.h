@@ -35,13 +35,25 @@
 #define TC_THRESHOLD    1.003
 
 #define TC_OK               TC_TRUE
-#define TC_ERR              -1
-#define TC_ERR_MEM          -2
-#define TC_NO_FILE          -3
-#define TC_ERR_FILE_SIZE    -4
-#define TC_NO_NGRAM         -5
-#define TC_ERR_CALLBACK     -6
-#define TC_ERR_NO_KNOWLEDGE -7
+#define TC_ERR              (-1)
+#define TC_ERR_MEM          (-2)
+#define TC_NO_FILE          (-3)
+#define TC_ERR_FILE_SIZE    (-4)
+#define TC_NO_NGRAM         (-5)
+#define TC_ERR_CALLBACK     (-6)
+#define TC_ERR_NO_KNOWLEDGE (-7)
+
+#define TEXTCAT_FUNCTION(type, name) textcat_callback_##type##_##name
+
+#define TEXTCAT_LIST(name) Bool TEXTCAT_FUNCTION(list, name)(void * memptr, uchar *** list, int * size, void * param)
+#define TEXTCAT_SAVE(name) Bool TEXTCAT_FUNCTION(save, name)(void * memptr, const uchar * id, NGrams * result, void * param)
+#define TEXTCAT_LOAD(name) Bool TEXTCAT_FUNCTION(load, name)(void * memptr, const uchar * id, NGrams * result, int max, void * param)
+#define TEXTCAT_DISTANCE(name) long TEXTCAT_FUNCTION(dist, name)(NGrams *a, NGrams *b, void * param)
+#define TEXTCAT_PARSER(name) long TEXTCAT_FUNCTION(parser, name)(void * memptr, int min, int max, const uchar * text, size_t length, int * (*set_ngram)(TextCat *, const uchar *, size_t), void * param, TextCat * tc)
+
+#define tc_malloc(size)  TextCat_malloc(memptr, size)
+#define tc_strdup(str)   TextCat_strndup(memptr, str, strlen(str));
+#define tc_strndup(str, len)   TextCat_strndup(memptr, str, len);
 /* }}} */
 
 /* Data types {{{ */
@@ -78,7 +90,7 @@ typedef struct TextCat {
     /* callback */
     void * (*malloc)(size_t);
     void (*free)(void *);
-    Bool (*parse_str)(struct TextCat *, uchar *, size_t , int * (*set_ngram)(struct TextCat *, const uchar *, size_t), void *);
+    Bool (*parse_str)(void *, int, int, uchar *, size_t , int * (*set_ngram)(struct TextCat *, const uchar *, size_t), void *, struct TextCat *);
     Bool (*save)(void *, const uchar *, struct NGrams *, void *);
     Bool (*list)(void *, uchar ***, int *, void *);
     Bool (*load)(void *, const uchar *, struct NGram *, int, void *);
@@ -134,6 +146,8 @@ Bool TextCat_parse(TextCat * tc, const uchar * text, size_t length, NGrams ** ng
 Bool TextCat_parse_file(TextCat * tc, const uchar * filename, NGrams ** ngrams);
 Bool TextCat_list(TextCat * tc, uchar *** list, int * len);
 Bool TextCat_load(TextCat *tc);
+void * TextCat_malloc(void * memblock, size_t size);
+void * TextCat_strndup(void * memblock, uchar * str, size_t len);
 
 /*
  * Local variables:
