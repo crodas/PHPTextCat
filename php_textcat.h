@@ -26,7 +26,7 @@
 #include <php.h>
 #include <ext/standard/info.h>
 #include <Zend/zend_exceptions.h>
-#include "textcat/textcat.h"
+#include "textcat.h"
 
 extern zend_module_entry textcat_module_entry;
 #define phpext_textcat_ptr &textcat_module_entry

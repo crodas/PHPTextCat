@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.8.0" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
+ <name>textcat</name>
+ <channel>pecl.php.net</channel>
+ <summary>Simple class to extract language of texts</summary>
+ <description>This extension implements N-gram based text categorization, useful to detect languages of texts with a minimum supervision.
+ 
+ </description>
+ <lead>
+  <name>César Rodas</name>
+  <user>crodas</user>
+  <email>crodas@php.net</email>
+  <active>yes</active>
+ </lead>
+ <date>2010-01-25</date>
+ <time>17:06:47</time>
+ <version>
+  <release>0.1.0</release>
+  <api>0.1.0</api>
+ </version>
+ <stability>
+  <release>alpha</release>
+  <api>alpha</api>
+ </stability>
+ <license uri="http://www.php.net/license">PHP</license>
+ <notes>
+- Initial PECL release
+ </notes>
+ <contents>
+  <dir name="/">
+     <file name="handlers.c" role="src" />
+     <file name="memory.c" role="src" />
+     <file name="ngrams.c" role="src" />
+     <file name="textcat.c" role="src" />
+     <file name="textcat.h" role="src" />
+     <file name="textcat_internal.h" role="src" />
+    <dir name="tests">
+     <file name="001.phpt" role="src" />
+     <file name="002.phpt" role="src" />
+     <file name="003.phpt" role="src" />
+     <file name="004.phpt" role="src" />
+     <file name="005.phpt" role="src" />
+     <file name="006.phpt" role="src" />
+     <file name="007.phpt" role="src" />
+     <file name="008.phpt" role="src" />
+     <file name="009.phpt" role="src" />
+    </dir>
+    <dir name="samples">
+     <file name="do_guess.php" role="src" />
+     <file name="do_learn.php" role="src" />
+    <dir name="texts">
+     <file name="albanian" role="src" />
+     <file name="catalan" role="src" />
+     <file name="danish" role="src" />
+     <file name="dutch" role="src" />
+     <file name="english" role="src" />
+     <file name="esperanto" role="src" />
+     <file name="estonian" role="src" />
+     <file name="finnish" role="src" />
+     <file name="french" role="src" />
+     <file name="german" role="src" />
+     <file name="guarani" role="src" />
+     <file name="irish" role="src" />
+     <file name="italian" role="src" />
+     <file name="latin" role="src" />
+     <file name="norwegian" role="src" />
+     <file name="portuguese" role="src" />
+     <file name="romanian" role="src" />
+     <file name="spanish" role="src" />
+     <file name="swedish" role="src" />
+     <file name="welsh" role="src" />
+    </dir>
+    </dir> <!-- ///samples -->
+   <file name="config.m4" role="src" />
+   <file name="EXPERIMENTAL" role="doc" />
+   <file name="php_textcat.c" role="src" />
+   <file name="php_textcat.h" role="src" />
+   <file name="README" role="doc" />
+  </dir> <!-- / -->
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>5.2.0</min>
+    <max>6.0.0</max>
+   </php>
+   <pearinstaller>
+    <min>1.4.0b1</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>textcat</providesextension>
+ <extsrcrelease />
+</package>
