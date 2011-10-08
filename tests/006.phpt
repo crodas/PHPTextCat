@@ -6,9 +6,9 @@ error_reporting(E_ALL);
 
 final class PHP_TextCat extends BaseTextCat
 {
-    function _save($name,Array $arr)
+    function _save($name, Array $arr)
     {
-        var_dump($name, is_array($arr));
+        var_dump($name, is_array($arr)&&count($arr) > 0);
     }
 
     function _load()

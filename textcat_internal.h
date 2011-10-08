@@ -28,16 +28,22 @@
 
                                 
 #define INIT_MEMORY(x)  \
-                        mempool_init(&tc->x, xmalloc, xfree, tc->allocate_size); \
-                        CHECK_MEM_EX(tc->x, TextCat_Destroy(tc) )  \
+    mempool_init(&tc->x, xmalloc, xfree, tc->allocate_size); \
+    CHECK_MEM_EX(tc->x, TextCat_Destroy(tc) )  \
 
-#define LOCK_INSTANCE(tc)   if (tc->status != TC_FREE) {\
-                                tc->error = TC_BUSY; \
-                                return TC_FALSE; \
-                            } \
-                            tc->status = TC_BUSY; /* lock it for our thread */ \
+/**
+ *  TODO: Improve it, it should use real
+ *  pthreads_mutex_* to lock
+ */
+#define LOCK_INSTANCE(tc)   \
+    if (tc->status != TC_FREE) {\
+        tc->error = TC_BUSY; \
+        return TC_FALSE; \
+    } \
+    tc->status = TC_BUSY; /* lock it for our thread */ \
 
-#define UNLOCK_INSTANCE(tc)   tc->status = TC_FREE;
+#define UNLOCK_INSTANCE(tc) \
+    tc->status = TC_FREE;
 
 typedef struct {
     long dist;
@@ -51,6 +57,8 @@ void * mempool_calloc(void * memory, size_t nmemb, size_t size);
 void * mempool_malloc(void * memory, size_t size);
 uchar * mempool_strndup(void * memory, uchar * key, size_t len);
 void mempool_reset(void * memory);
+
+#define mempool_strdup(x,y) mempool_strndup(x, y, strlen(y))
 
 
 long textcat_simple_hash(const uchar *p, size_t len, size_t max_number);
@@ -71,7 +79,6 @@ TEXTCAT_DISTANCE(default);
 TEXTCAT_PARSER(default);
 /* }}} */
 
-#define mempool_strdup(x,y) mempool_strndup(x, y, strlen(y))
 
 /*
  * Local variables:

@@ -18,6 +18,16 @@ for ($i=0; $i < 10000;  $i++) {
     }
 }
 var_dump($i);
+
+$tc = new TextCat();
+$tc->setDirectory('/tmp');
+for ($i=0; $i < 10000;  $i++) {
+    if ($tc->getCategory('Esto es un lindo texto') != 'spanish') {
+        break;
+    }
+}
+var_dump($i);
 ?>
 --EXPECT--
+int(10000)
 int(10000)

@@ -1,6 +1,6 @@
 /*
    +----------------------------------------------------------------------+
-   | Copyright (c) 2010 The PHP Group                                     |
+   | Copyright (c) 2011 The PHP Group                                     |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -111,7 +111,7 @@ TEXTCAT_LOAD(default)
     ncount  = 0;
     offset  = 0;
     do {
-        bytes = read(fd, content + offset, FILE_BUFFER - offset) + offset;
+        bytes = read(fd, content + offset, FILE_BUFFER);
         for (i=0; offset < bytes; offset++) {
             if (*(content+offset) == '\n') {
                 result->ngram[ncount].str       = tc_strndup(content+i, offset-i);

@@ -13,7 +13,7 @@ $result = $tc->save("english");
 unset($tc);
 $tc = new TextCat();
 $tc->setDirectory('./test/');
-var_dump(array_search('spanish', $tc->getKnowledges()) !== false);
+var_dump(in_array('spanish', $tc->getKnowledges()));
 @unlink('./test/spanish.tc');
 @unlink('./test/english.tc');
 @rmdir('./test/');
